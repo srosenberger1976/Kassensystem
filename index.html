@@ -317,7 +317,7 @@
             const detector = new BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8'] });
             scanInterval = setInterval(() => {
                 if (!cameraStream) return;
-                detector.detect(video).then(b => { if (b && b.length > 0 && b.rawValue) { let c = b.rawValue.trim().replace(']C1', ''); closeScannerPopup(); processScannedCode(c); } }).catch(() => {});
+                detector.detect(video).then(b => { if (b && b.length > 0 && b[0].rawValue) { let c = b[0].rawValue.trim().replace(']C1', ''); closeScannerPopup(); processScannedCode(c); } }).catch(() => {});
             }, 300);
         }).catch(() => { alert("Kamera blockiert!"); });
     } else {
@@ -328,6 +328,7 @@
         ).catch(() => { alert("iPhone Kamera blockiert!"); });
     }
  }
+
  function closeScannerPopup() {
     document.getElementById('pixelVideo').style.display = 'block';
     if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
@@ -335,7 +336,20 @@
     if (html5QrcodeScanner && html5QrcodeScanner.isScanning) { html5QrcodeScanner.stop().catch(() => {}); }
     document.getElementById('popScanner').style.display = 'none';
  }
- function saveName() { const inputField = document.getElementById('inp').value.trim(); const dropdownField = document.getElementById('drop').value; let finalName = inputField || dropdownField; if (!finalName) return; const currentDb = tab === 'heim' ? dbH : dbG; currentDb[idx] = { name: finalName, ean: scannedCardEan, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; save(); scannedCardEan = ""; closeAll(); openMenu(); }
+
+
+ function saveName() { 
+    const inputField = document.getElementById('inp').value.trim(); const dropdownField = document.getElementById('drop').value; let finalName = inputField || dropdownField; if (!finalName) return; 
+    const currentDb = tab === 'heim' ? dbH : dbG; currentDb[idx] = { name: finalName, ean: scannedCardEan, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; 
+    save(); scannedCardEan = ""; closeAll(); openMenu(); 
+ }
+
+
+
+
+
+
+
 
  function showList(m) { const c = document.getElementById('lContent'); c.innerHTML = ''; let s = 0; if (m === 'essen') document.getElementById('lTitle').innerText = 'Essen-Liste'; else if (m === 'spirituosen') document.getElementById('lTitle').innerText = 'Spirituosen-Liste'; else if (m === 'rest') document.getElementById('lTitle').innerText = 'Gesamt (Ohne Essen)'; else if (m === 'alles') document.getElementById('lTitle').innerText = 'Absolute Gesamtabrechnung'; const counts = {}; const processData = (d) => { Object.values(d).forEach(p => { if(p.items) { p.items.forEach(i => { const isJacky = i.n.toLowerCase().includes('jacky'); if (m === 'alles') { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'essen' && i.c === 'essen') { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'spirituosen' && i.c === 'spirituosen' && isJacky) { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'rest' && i.c !== 'essen' && !(i.c === 'spirituosen' && isJacky)) { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } }); } }); }; processData(dbH); processData(dbG); Object.entries(counts).forEach(([name, count]) => { let unitPrice = 0; const findPrice = (d) => { Object.values(d).forEach(p => { if(p.items) { const found = p.items.find(item => item.n === name); if(found) unitPrice = found.p; } }); }; findPrice(dbH); if(unitPrice === 0) findPrice(dbG); const div = document.createElement('div'); div.className = 'l-item'; div.innerHTML = '<div><strong>' + count + 'x</strong> ' + name + '</div><strong>' + (count * unitPrice).toFixed(2) + ' €</strong>'; c.appendChild(div); }); const tDiv = document.createElement('div'); tDiv.className = 'l-item'; tDiv.style.borderTop = '3px double #333'; tDiv.innerHTML = '<div><strong>GESAMT:</strong></div><strong>' + s.toFixed(2) + ' €</strong>'; c.appendChild(tDiv); document.getElementById('popList').style.display = 'flex'; }
  function openData() { document.getElementById('vGridCount').value = gridCount; let txt = '[Heim]\n' + tH.filter(n => n && !n.includes('--')).join('\n') + '\n\n'; txt += '[Gast]\n' + tG.filter(n => n && !n.includes('--')).join('\n') + '\n\n'; txt += '[Biere]\n' + makeLines(menu.biere) + '\n\n'; txt += '[Weizen]\n' + makeLines(menu.weizen) + '\n\n'; txt += '[BiereAlk]\n' + makeLines(menu.biere_alk) + '\n\n'; txt += '[Weine]\n' + makeLines(menu.weine) + '\n\n'; txt += '[Softdrinks]\n' + makeLines(menu.softdrinks) + '\n\n'; txt += '[Jacky]\n' + makeLines(menu.sub_jacky) + '\n\n'; txt += '[Huetchen]\n' + makeLines(menu.sub_huetchen) + '\n\n'; txt += '[Schnaepse]\n' + makeLines(menu.sub_schnaepse) + '\n\n'; txt += '[Essen]\n' + makeLines(menu.essen) + '\n\n'; txt += '[Sonstiges]\n' + makeLines(menu.sonstiges); document.getElementById('vAllData').value = txt; document.getElementById('popData').style.display = 'flex'; }
