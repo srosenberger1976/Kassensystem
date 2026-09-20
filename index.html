@@ -89,13 +89,15 @@
  <div class="overlay" id="popScanner" style="display: none;">
  <div class="popup" style="max-width:550px;">
  <h3>Karte einscannen</h3>
- <div id="reader" style="width: 100%; min-height: 250px; background: #fafafa; margin: 10px 0;"></div>
+ <!-- Ein echtes Video-Element fuer das Pixel 8a -->
+ <video id="pixelVideo" autoplay playsinline style="width: 100%; max-width: 500px; border: 4px solid #000000; border-radius: 16px; background: #fafafa; margin: 10px 0;"></video>
  <div style="display: flex; gap: 10px; margin-top: 10px;">
  <button class="m-btn" style="background:#f59e0b; flex: 1; border-color:#000;" onclick="spielVorbei()">Spiel vorbei</button>
  <button class="m-btn" style="background:#cbd5e1; flex: 1; border-color:#000;" onclick="closeScannerPopup()">Schließen</button>
  </div>
  </div>
  </div>
+
 
 <div class="overlay" id="popName" style="display: none;">
  <div class="popup">
@@ -303,27 +305,35 @@
  let barcodeBuffer = "";
  window.addEventListener("keydown", function(e) { if (e.key === "Enter") { if (barcodeBuffer.length >= 3) { processScannedCode(barcodeBuffer.trim()); } barcodeBuffer = ""; } else if (e.key.length === 1) { barcodeBuffer += e.key; } });
  function processScannedCode(code) { let cleanCode = code.trim(); let lowerCode = cleanCode.toLowerCase(); for (let i = 1; i <= gridCount; i++) { if (dbH[i] && dbH[i].ean === cleanCode) { idx = i; tab = 'heim'; openMenu(); return; } if (dbG[i] && dbG[i].ean === cleanCode) { idx = i; tab = 'gaeste'; openMenu(); return; } } if (lowerCode.includes("gast")) { tab = 'gaeste'; let freeIdx = null; for (let i = 1; i <= gridCount; i++) { if (!dbG[i] || !dbG[i].name) { freeIdx = i; break; } } if (freeIdx) { idx = freeIdx; dbG[idx] = { name: cleanCode, ean: cleanCode, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; save(); openNameForScannedCard(cleanCode, cleanCode); } else { alert("Kein freier Platz im Gaeste-Gitter!"); } return; } tab = 'heim'; let foundName = ""; tH.forEach(n => { if(n && n.includes(';')) { const parts = n.split(';'); if(parts && parts[0] && parts[0].trim() === cleanCode) { foundName = parts[0].trim(); } } }); const curDb = dbH; let freeIdx = null; for (let i = 1; i <= gridCount; i++) { if (!curDb[i] || !curDb[i].name) { freeIdx = i; break; } } if (!freeIdx) { alert("Kein freier Platz im Heim-Gitter!"); return; } idx = freeIdx; if (foundName) { curDb[idx] = { name: foundName, ean: cleanCode, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; save(); openMenu(); } else { curDb[idx] = { name: cleanCode, ean: cleanCode, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; save(); openNameForScannedCard("Heimspieler", cleanCode); } }
+ 
  let scannedCardEan = "";
  function openNameForScannedCard(cardLabel, code) { scannedCardEan = code; document.getElementById('nameAssignTitle').innerText = "Karte (" + cardLabel + ") einem Spieler zuweisen:"; openName(); }
- function parseLinesFromSection(lines, cat) { return lines.map(l => { if (!l || !l.includes(';')) return null; const parts = l.split(';'); return {n: parts[0].trim(), p: parseFloat(parts[1].replace(',','.'))||0, c: cat}; }).filter(x => x); }
+ function parseLinesFromSection(lines, cat) { return lines.map(l => { if (!l || !l.includes(';')) return null; const parts = l.split(';'); return {n: parts.trim(), p: parseFloat(parts.replace(',','.'))||0, c: cat}; }).filter(x => x); }
+ 
+ let cameraStream = null;
 
- let html5QrcodeScanner = null;
  function openScannerPopup() {
+    const video = document.getElementById('pixelVideo');
     document.getElementById('popScanner').style.display = 'flex';
-    if (!html5QrcodeScanner) { html5QrcodeScanner = new Html5Qrcode("reader"); }
     
-    // Pixel 8a Spezial-Einstellung: Keine feste Box erzwingen
-    html5QrcodeScanner.start(
-      { facingMode: "environment" }, 
-      { fps: 15 }, 
-      (decodedText) => { closeScannerPopup(); processScannedCode(decodedText.trim()); }, 
-      (errorMessage) => {}
-    ).catch(err => { 
-      alert("Kamera-Fehler auf Pixel: Bitte Seite neu laden."); 
+    // Die offizielle Google-Methode fuer Pixel-Handys
+    navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+    }).then(stream => {
+        cameraStream = stream;
+        video.srcObject = stream;
+    }).catch(err => {
+        alert("Kamera-Berechtigung blockiert! Bitte in den Android-Einstellungen fuer Chrome freischalten.");
     });
  }
 
- function closeScannerPopup() { document.getElementById('popScanner').style.display = 'none'; if (html5QrcodeScanner && html5QrcodeScanner.isScanning) { html5QrcodeScanner.stop().catch(() => {}); } }
+ function closeScannerPopup() {
+    document.getElementById('popScanner').style.display = 'none';
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+ }
 
  function showList(m) { const c = document.getElementById('lContent'); c.innerHTML = ''; let s = 0; if (m === 'essen') document.getElementById('lTitle').innerText = 'Essen-Liste'; else if (m === 'spirituosen') document.getElementById('lTitle').innerText = 'Spirituosen-Liste'; else if (m === 'rest') document.getElementById('lTitle').innerText = 'Gesamt (Ohne Essen)'; else if (m === 'alles') document.getElementById('lTitle').innerText = 'Absolute Gesamtabrechnung'; const counts = {}; const processData = (d) => { Object.values(d).forEach(p => { if(p.items) { p.items.forEach(i => { const isJacky = i.n.toLowerCase().includes('jacky'); if (m === 'alles') { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'essen' && i.c === 'essen') { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'spirituosen' && i.c === 'spirituosen' && isJacky) { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'rest' && i.c !== 'essen' && !(i.c === 'spirituosen' && isJacky)) { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } }); } }); }; processData(dbH); processData(dbG); Object.entries(counts).forEach(([name, count]) => { let unitPrice = 0; const findPrice = (d) => { Object.values(d).forEach(p => { if(p.items) { const found = p.items.find(item => item.n === name); if(found) unitPrice = found.p; } }); }; findPrice(dbH); if(unitPrice === 0) findPrice(dbG); const div = document.createElement('div'); div.className = 'l-item'; div.innerHTML = '<div><strong>' + count + 'x</strong> ' + name + '</div><strong>' + (count * unitPrice).toFixed(2) + ' €</strong>'; c.appendChild(div); }); const tDiv = document.createElement('div'); tDiv.className = 'l-item'; tDiv.style.borderTop = '3px double #333'; tDiv.innerHTML = '<div><strong>GESAMT:</strong></div><strong>' + s.toFixed(2) + ' €</strong>'; c.appendChild(tDiv); document.getElementById('popList').style.display = 'flex'; }
  function saveName() { const inputField = document.getElementById('inp').value.trim(); const dropdownField = document.getElementById('drop').value; let finalName = inputField || dropdownField; if (!finalName) return; const currentDb = tab === 'heim' ? dbH : dbG; currentDb[idx] = { name: finalName, ean: scannedCardEan, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; save(); scannedCardEan = ""; closeAll(); openMenu(); }
