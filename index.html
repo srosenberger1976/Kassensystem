@@ -212,26 +212,9 @@
  </div>
 
 <script>
-
-
  let dbH = JSON.parse(localStorage.getItem('dbH')) || {}, dbG = JSON.parse(localStorage.getItem('dbG')) || {};
  let isEv = JSON.parse(localStorage.getItem('isEv')) || false, tab = 'heim', idx = null, lastLoadAmt = 0;
  let gridCount = parseInt(localStorage.getItem('gridCount')) || 20;
-
-// Automatische Bereinigung des Scanner-Inputs vom Präfix ]C1
-window.addEventListener('input', function(e) {
-    if (e.target && typeof e.target.value === 'string') {
-        let val = e.target.value;
-        if (val.includes(']C1')) {
-            e.target.value = val.replace(']C1', '');
-            // Signalisiert der App, dass der Text jetzt sauber ist
-            e.target.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-    }
-}, true);
-
-
-
  let tH = JSON.parse(localStorage.getItem('tH')) || ["--- Waehlen ---", "Thomas", "Michael", "Andreas"], tG = JSON.parse(localStorage.getItem('tG')) || ["--- Waehlen ---", "Gast 1", "Gast 2"];
  let menu = JSON.parse(localStorage.getItem('fullMenu')) || {
  biere: [{n: "Weizen", sub: "weizen"}, {n: "Alkoholfreie Biere", sub: "biere_alk"}, {n: "Pils 0.33l", p: 3, c: "biere"}, {n: "Pils 0.5l", p: 4, c: "biere"}],
@@ -241,7 +224,7 @@ window.addEventListener('input', function(e) {
  softdrinks: [{n: "Wasser", p: 2.5, c: "softdrinks"}, {n: "Cola", p: 3, c: "softdrinks"}, {n: "Fanta", p: 3, c: "softdrinks"}, {n: "Sprite", p: 3, c: "softdrinks"}, {n: "Spezi", p: 3, c: "softdrinks"}],
  spirituosen: [{n: "Jacky Ordner", sub: "sub_jacky"}, {n: "Huetchen Ordner", sub: "sub_huetchen"}, {n: "Schnaepse Ordner", sub: "sub_schnaepse"}],
  sub_jacky: [{n: "Jacky Cola", p: 5, c: "spirituosen"}, {n: "Jacky Double", p: 8, c: "spirituosen"}],
- sub_huetchen: [{n: "Hütchen klein", p: 2.5, c: "spirituosen"}, {n: "Hütchen gross", p: 4, c: "spirituosen"}],
+ sub_huetchen: [{n: "Huetchen klein", p: 2.5, c: "spirituosen"}, {n: "Hütchen gross", p: 4, c: "spirituosen"}],
  sub_schnaepse: [{n: "Korn", p: 2, c: "spirituosen"}, {n: "Jaegermeister", p: 2.5, c: "spirituosen"}, {n: "Tequila", p: 2.5, c: "spirituosen"}],
  essen: [{n: "Bratwurst", p: 3.5, c: "essen"}, {n: "Pommes", p: 3, c: "essen"}],
  sonstiges: [{n: "Pfand", p: 1, c: "sonstiges"}]
@@ -283,7 +266,6 @@ window.addEventListener('input', function(e) {
  });
  document.getElementById('inp').value = ''; document.getElementById('popName').style.display = 'flex';
  }
-
  function openMenu() {
  const p = (tab === 'heim' ? dbH : dbG)[idx]; document.getElementById('mTitle').innerText = p.name; document.getElementById('mSub').innerText = 'Verzehrt: ' + p.total.toFixed(2) + ' €';
  document.getElementById('mCred').style.display = isEv ? 'block' : 'none'; document.getElementById('mAddC').style.display = isEv ? 'block' : 'none';
@@ -318,33 +300,27 @@ window.addEventListener('input', function(e) {
  function toggleSalesMenu() { const m = document.getElementById('salesMenu'), a = document.getElementById('salesArrow'); if(m.style.display === 'none') { m.style.display = 'flex'; a.innerText = '▲'; } else { m.style.display = 'none'; a.innerText = '▼'; } }
  function pay() { (tab === 'heim' ? dbH : dbG)[idx].paid = true; save(); closeAll(); }
  function spielVorbei() { if (!confirm("Möchtest du das Spiel beenden und alle Namen der Gastkarten leeren?")) return; for (let i = 1; i <= gridCount; i++) { if (dbH[i] && dbH[i].ean && dbH[i].ean.toLowerCase().includes("gast")) { dbH[i].name = dbH[i].ean; } if (dbG[i] && dbG[i].ean && dbG[i].ean.toLowerCase().includes("gast")) { dbG[i].name = dbG[i].ean; } } save(); draw(); alert("Alle Gastkarten wurden zurückgesetzt!"); }
-
  let barcodeBuffer = "";
  window.addEventListener("keydown", function(e) { if (e.key === "Enter") { if (barcodeBuffer.length >= 3) { processScannedCode(barcodeBuffer.trim()); } barcodeBuffer = ""; } else if (e.key.length === 1) { barcodeBuffer += e.key; } });
- function processScannedCode(code) { let cleanCode = code.trim(); let lowerCode = cleanCode.toLowerCase(); for (let i = 1; i <= gridCount; i++) { if (dbH[i] && dbH[i].ean === cleanCode) { idx = i; tab = 'heim'; openMenu(); return; } if (dbG[i] && dbG[i].ean === cleanCode) { idx = i; tab = 'gaeste'; openMenu(); return; } } if (lowerCode.includes("gast")) { tab = 'gaeste'; let freeIdx = null; for (let i = 1; i <= gridCount; i++) { if (!dbG[i] || !dbG[i].name) { freeIdx = i; break; } } if (freeIdx) { idx = freeIdx; dbG[idx] = { name: cleanCode, ean: cleanCode, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; save(); openNameForScannedCard(cleanCode, cleanCode); } else { alert("Kein freier Platz im Gaeste-Gitter!"); } return; } tab = 'heim'; let foundName = ""; tH.forEach(n => { if(n && n.includes(';')) { const parts = n.split(';'); if(parts && parts[0] && parts[0].trim() === cleanCode) { foundName = parts[0].trim(); } } }); const curDb = dbH; let freeIdx = null; for (let i = 1; i <= gridCount; i++) { if (!curDb[i] || !curDb[i].name) { freeIdx = i; break; } } if (!freeIdx) { alert("Kein freier Platz im Heim-Gitter!"); return; } idx = freeIdx; if (foundName) { curDb[idx] = { name: foundName, ean: cleanCode, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; save(); openMenu(); } else { curDb[idx] = { name: cleanCode, ean: cleanCode, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; save(); openNameForScannedCard("Heimspieler", cleanCode); } }
- 
+ function processScannedCode(code) { let cleanCode = code.trim(); let lowerCode = cleanCode.toLowerCase(); for (let i = 1; i <= gridCount; i++) { if (dbH[i] && dbH[i].ean === cleanCode) { idx = i; tab = 'heim'; openMenu(); return; } if (dbG[i] && dbG[i].ean === cleanCode) { idx = i; tab = 'gaeste'; openMenu(); return; } } if (lowerCode.includes("gast")) { tab = 'gaeste'; let freeIdx = null; for (let i = 1; i <= gridCount; i++) { if (!dbG[i] || !dbG[i].name) { freeIdx = i; break; } } if (freeIdx) { idx = freeIdx; dbG[idx] = { name: cleanCode, ean: cleanCode, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; save(); openNameForScannedCard(cleanCode, cleanCode); } else { alert("Kein freier Platz im Gaeste-Gitter!"); } return; } tab = 'heim'; let foundName = ""; tH.forEach(n => { if(n && n.includes(';')) { const parts = n.split(';'); if(parts && parts && parts.trim() === cleanCode) { foundName = parts.trim(); } } }); const curDb = dbH; let freeIdx = null; for (let i = 1; i <= gridCount; i++) { if (!curDb[i] || !curDb[i].name) { freeIdx = i; break; } } if (!freeIdx) { alert("Kein freier Platz im Heim-Gitter!"); return; } idx = freeIdx; if (foundName) { curDb[idx] = { name: foundName, ean: cleanCode, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; save(); openMenu(); } else { curDb[idx] = { name: cleanCode, ean: cleanCode, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; save(); openNameForScannedCard("Heimspieler", cleanCode); } }
  let scannedCardEan = "";
  function openNameForScannedCard(cardLabel, code) { scannedCardEan = code; document.getElementById('nameAssignTitle').innerText = "Karte (" + cardLabel + ") einem Spieler zuweisen:"; openName(); }
  function parseLinesFromSection(lines, cat) { return lines.map(l => { if (!l || !l.includes(';')) return null; const parts = l.split(';'); return {n: parts.trim(), p: parseFloat(parts.replace(',','.'))||0, c: cat}; }).filter(x => x); }
- 
- let cameraStream = null; let scanInterval = null;
+ let html5QrcodeScanner = null; let cameraStream = null; let scanInterval = null;
  function openScannerPopup() {
     document.getElementById('popScanner').style.display = 'flex';
     const video = document.getElementById('pixelVideo');
     if (!html5QrcodeScanner) { html5QrcodeScanner = new Html5Qrcode("reader"); }
-
     if ('BarcodeDetector' in window) {
-        // Android / Pixel Weg: Nutzt dein vorhandenes Video-Element
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(stream => {
             cameraStream = stream; video.srcObject = stream;
             const detector = new BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8'] });
             scanInterval = setInterval(() => {
                 if (!cameraStream) return;
-                detector.detect(video).then(b => { if (b && b.length > 0 && b[0].rawValue) { let c = b[0].rawValue.trim().replace(']C1', ''); closeScannerPopup(); processScannedCode(c); } }).catch(() => {});
+                detector.detect(video).then(b => { if (b && b.length > 0 && b.rawValue) { let c = b.rawValue.trim().replace(']C1', ''); closeScannerPopup(); processScannedCode(c); } }).catch(() => {});
             }, 300);
         }).catch(() => { alert("Kamera blockiert!"); });
     } else {
-        // Apple / iPhone Weg: Blendet das Video aus und nutzt die Apple-Schnittstelle im reader-Feld
         video.style.display = 'none';
         html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 150 } }, 
             (txt) => { let c = txt.trim().replace(']C1', ''); closeScannerPopup(); processScannedCode(c); }, 
@@ -352,73 +328,28 @@ window.addEventListener('input', function(e) {
         ).catch(() => { alert("iPhone Kamera blockiert!"); });
     }
  }
-
-
-
- function startPixelScan(detector, video) {
-    if (!cameraStream) return;
-    detector.detect(video).then(barcodes => {
-        if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
-            let code = barcodes[0].rawValue.trim();
-            if (code.includes(']C1')) { code = code.replace(']C1', ''); }
-            closeScannerPopup(); processScannedCode(code);
-        }
-    }).catch(err => { console.log("Suche...", err); });
- }
- function startAppleScan(video) {
-    if (!cameraStream || video.readyState !== video.HAVE_ENOUGH_DATA) return;
-    // iOS-Sicherheits-Scan: Verarbeitet das Bild direkt im Apple-Browser
-    try {
-        if (typeof html5QrcodeScanner !== 'undefined' && html5QrcodeScanner) {
-            // Nutzt ein Backup-Verfahren falls vorhanden
-        }
-    } catch(e) { console.log(e); }
- }
-
-
-
  function closeScannerPopup() {
-    document.getElementById('popScanner').style.none;
     document.getElementById('pixelVideo').style.display = 'block';
     if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
     if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
     if (html5QrcodeScanner && html5QrcodeScanner.isScanning) { html5QrcodeScanner.stop().catch(() => {}); }
     document.getElementById('popScanner').style.display = 'none';
  }
-
-
-
-
-
- function showList(m) { const c = document.getElementById('lContent'); c.innerHTML = ''; let s = 0; if (m === 'essen') document.getElementById('lTitle').innerText = 'Essen-Liste'; else if (m === 'spirituosen') document.getElementById('lTitle').innerText = 'Spirituosen-Liste'; else if (m === 'rest') document.getElementById('lTitle').innerText = 'Gesamt (Ohne Essen)'; else if (m === 'alles') document.getElementById('lTitle').innerText = 'Absolute Gesamtabrechnung'; const counts = {}; const processData = (d) => { Object.values(d).forEach(p => { if(p.items) { p.items.forEach(i => { const isJacky = i.n.toLowerCase().includes('jacky'); if (m === 'alles') { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'essen' && i.c === 'essen') { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'spirituosen' && i.c === 'spirituosen' && isJacky) { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'rest' && i.c !== 'essen' && !(i.c === 'spirituosen' && isJacky)) { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } }); } }); }; processData(dbH); processData(dbG); Object.entries(counts).forEach(([name, count]) => { let unitPrice = 0; const findPrice = (d) => { Object.values(d).forEach(p => { if(p.items) { const found = p.items.find(item => item.n === name); if(found) unitPrice = found.p; } }); }; findPrice(dbH); if(unitPrice === 0) findPrice(dbG); const div = document.createElement('div'); div.className = 'l-item'; div.innerHTML = '<div><strong>' + count + 'x</strong> ' + name + '</div><strong>' + (count * unitPrice).toFixed(2) + ' €</strong>'; c.appendChild(div); }); const tDiv = document.createElement('div'); tDiv.className = 'l-item'; tDiv.style.borderTop = '3px double #333'; tDiv.innerHTML = '<div><strong>GESAMT:</strong></div><strong>' + s.toFixed(2) + ' €</strong>'; c.appendChild(tDiv); document.getElementById('popList').style.display = 'flex'; }
  function saveName() { const inputField = document.getElementById('inp').value.trim(); const dropdownField = document.getElementById('drop').value; let finalName = inputField || dropdownField; if (!finalName) return; const currentDb = tab === 'heim' ? dbH : dbG; currentDb[idx] = { name: finalName, ean: scannedCardEan, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; save(); scannedCardEan = ""; closeAll(); openMenu(); }
 
+ function showList(m) { const c = document.getElementById('lContent'); c.innerHTML = ''; let s = 0; if (m === 'essen') document.getElementById('lTitle').innerText = 'Essen-Liste'; else if (m === 'spirituosen') document.getElementById('lTitle').innerText = 'Spirituosen-Liste'; else if (m === 'rest') document.getElementById('lTitle').innerText = 'Gesamt (Ohne Essen)'; else if (m === 'alles') document.getElementById('lTitle').innerText = 'Absolute Gesamtabrechnung'; const counts = {}; const processData = (d) => { Object.values(d).forEach(p => { if(p.items) { p.items.forEach(i => { const isJacky = i.n.toLowerCase().includes('jacky'); if (m === 'alles') { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'essen' && i.c === 'essen') { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'spirituosen' && i.c === 'spirituosen' && isJacky) { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'rest' && i.c !== 'essen' && !(i.c === 'spirituosen' && isJacky)) { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } }); } }); }; processData(dbH); processData(dbG); Object.entries(counts).forEach(([name, count]) => { let unitPrice = 0; const findPrice = (d) => { Object.values(d).forEach(p => { if(p.items) { const found = p.items.find(item => item.n === name); if(found) unitPrice = found.p; } }); }; findPrice(dbH); if(unitPrice === 0) findPrice(dbG); const div = document.createElement('div'); div.className = 'l-item'; div.innerHTML = '<div><strong>' + count + 'x</strong> ' + name + '</div><strong>' + (count * unitPrice).toFixed(2) + ' €</strong>'; c.appendChild(div); }); const tDiv = document.createElement('div'); tDiv.className = 'l-item'; tDiv.style.borderTop = '3px double #333'; tDiv.innerHTML = '<div><strong>GESAMT:</strong></div><strong>' + s.toFixed(2) + ' €</strong>'; c.appendChild(tDiv); document.getElementById('popList').style.display = 'flex'; }
  function openData() { document.getElementById('vGridCount').value = gridCount; let txt = '[Heim]\n' + tH.filter(n => n && !n.includes('--')).join('\n') + '\n\n'; txt += '[Gast]\n' + tG.filter(n => n && !n.includes('--')).join('\n') + '\n\n'; txt += '[Biere]\n' + makeLines(menu.biere) + '\n\n'; txt += '[Weizen]\n' + makeLines(menu.weizen) + '\n\n'; txt += '[BiereAlk]\n' + makeLines(menu.biere_alk) + '\n\n'; txt += '[Weine]\n' + makeLines(menu.weine) + '\n\n'; txt += '[Softdrinks]\n' + makeLines(menu.softdrinks) + '\n\n'; txt += '[Jacky]\n' + makeLines(menu.sub_jacky) + '\n\n'; txt += '[Huetchen]\n' + makeLines(menu.sub_huetchen) + '\n\n'; txt += '[Schnaepse]\n' + makeLines(menu.sub_schnaepse) + '\n\n'; txt += '[Essen]\n' + makeLines(menu.essen) + '\n\n'; txt += '[Sonstiges]\n' + makeLines(menu.sonstiges); document.getElementById('vAllData').value = txt; document.getElementById('popData').style.display = 'flex'; }
- function getSectionLines(text, sectionName) { const regex = new RegExp('\\[' + sectionName + '\\]([\\s\\S]*?)(?=\\[|\$)', 'i'); const match = text.match(regex); return match ? match[1].trim().split('\n').map(l => l.trim()).filter(l => l) : []; }
-function exportJSON() {
- try {
- const backupData = { dbH: JSON.parse(localStorage.getItem('dbH')) || {}, dbG: JSON.parse(localStorage.getItem('dbG')) || {}, tH: JSON.parse(localStorage.getItem('tH')) || [], tG: JSON.parse(localStorage.getItem('tG')) || {}, fullMenu: JSON.parse(localStorage.getItem('fullMenu')) || {}, gridCount: parseInt(localStorage.getItem('gridCount')) || 20, isEv: JSON.parse(localStorage.getItem('isEv')) || false };
- const now = new Date(); 
- const matchDate = now.toLocaleDateString('de-DE').replace(/\./g, "-");
- const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2)); 
- const downloadAnchor = document.createElement('a'); 
- downloadAnchor.setAttribute("href", dataStr); 
- downloadAnchor.setAttribute("download", `kassensystem_spieltag_${matchDate}.json`); 
- document.body.appendChild(downloadAnchor); 
- downloadAnchor.click(); 
- downloadAnchor.remove();
- } catch (err) { alert("Fehler beim Exportieren der Daten: " + err.message); }
-}
+ function getSectionLines(text, sectionName) { const regex = new RegExp('\\[' + sectionName + '\\]([\\s\\S]*?)(?=\\[|\$)', 'i'); const match = text.match(regex); return match ? match.trim().split('\n').map(l => l.trim()).filter(l => l) : []; }
 
+ function exportJSON() { try { const backupData = { dbH: JSON.parse(localStorage.getItem('dbH')) || {}, dbG: JSON.parse(localStorage.getItem('dbG')) || {}, tH: JSON.parse(localStorage.getItem('tH')) || [], tG: JSON.parse(localStorage.getItem('tG')) || {}, fullMenu: JSON.parse(localStorage.getItem('fullMenu')) || {}, gridCount: parseInt(localStorage.getItem('gridCount')) || 20, isEv: JSON.parse(localStorage.getItem('isEv')) || false }; const now = new Date(); const matchDate = now.toLocaleDateString('de-DE').replace(/\./g, "-"); const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2)); const downloadAnchor = document.createElement('a'); downloadAnchor.setAttribute("href", dataStr); downloadAnchor.setAttribute("download", `kassensystem_spieltag_${matchDate}.json`); document.body.appendChild(downloadAnchor); downloadAnchor.click(); downloadAnchor.remove(); } catch (err) { alert("Fehler beim Exportieren der Daten: " + err.message); } }
  function importJSON(input) { const file = input.files; if (!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const importedData = JSON.parse(e.target.result); if (!importedData.dbH || !importedData.dbG || !importedData.fullMenu) { throw new Error("Ungueltiges Dateiformat."); } if (!confirm("Moechtest du diese JSON-Datei wirklich laden?")) { input.value = ''; return; } localStorage.setItem('dbH', JSON.stringify(importedData.dbH)); localStorage.setItem('dbG', JSON.stringify(importedData.dbG)); if(importedData.tH) localStorage.setItem('tH', JSON.stringify(importedData.tH)); if(importedData.tG) localStorage.setItem('tG', JSON.stringify(importedData.tG)); localStorage.setItem('fullMenu', JSON.stringify(importedData.fullMenu)); if(importedData.gridCount) localStorage.setItem('gridCount', importedData.gridCount); if(importedData.isEv !== undefined) localStorage.setItem('isEv', importedData.isEv); dbH = importedData.dbH; dbG = importedData.dbG; if(importedData.tH) tH = importedData.tH; if(importedData.tG) tG = importedData.tG; menu = importedData.fullMenu; if(importedData.gridCount) gridCount = parseInt(importedData.gridCount); if(importedData.isEv !== undefined) isEv = importedData.isEv; input.value = ''; closeAll(); alert("Daten erfolgreich geladen!"); } catch (err) { alert("Fehler: " + err.message); input.value = ''; } }; reader.readAsText(file); }
-
- function saveData() { gridCount = parseInt(document.getElementById('vGridCount').value) || 20; localStorage.setItem('gridCount', gridCount); const txt = document.getElementById('vAllData').value; const h = getSectionLines(txt, 'Heim'), g = getSectionLines(txt, 'Gast'); if(h.length) tH = ["--- Waehlen ---", ...h]; if(g.length) tG = ["--- Waehlen ---", ...g]; const b = parseLinesFromSection(getSectionLines(txt, 'Biere'), 'biere'); if(b.length) menu.biere = [{n: "Weizen", sub: "weizen"}, {n: "Alkoholfreie Biere", sub: "biere_alk"}, ...b]; const w = parseLinesFromSection(getSectionLines(txt, 'Weizen'), 'biere'); if(w.length) menu.weizen = w; const ba = parseLinesFromSection(getSectionLines(txt, 'BiereAlk'), 'biere'); if(ba.length) menu.biere_alk = ba; const wn = parseLinesFromSection(getSectionLines(txt, 'Weine'), 'weine'); if(wn.length) menu.weine = wn; const s = parseLinesFromSection(getSectionLines(txt, 'Softdrinks'), 'softdrinks'); if(s.length) menu.softdrinks = s; const j = parseLinesFromSection(getSectionLines(txt, 'Jacky'), 'spirituosen'); if(j.length) menu.sub_jacky = j; const hc = parseLinesFromSection(getSectionLines(txt, 'Huetchen'), 'spirituosen'); if(hc.length) menu.sub_huetchen = hc; const sc = parseLinesFromSection(getSectionLines(txt, 'Schnaepse'), 'spirituosen'); if(sc.length) menu.sub_schnaepse = sc; const e = parseLinesFromSection(getSectionLines(txt, 'Essen'), 'essen'); if(e.length) menu.essen = e; const so = parseLinesFromSection(getSectionLines(txt, 'Sonstiges'), 'sonstiges'); if(so.length) menu.sonstiges = so; localStorage.setItem('fullMenu', JSON.stringify(menu)); save(); closeAll(); alert("Einstellungen aktualisiert!"); }
+ function saveData() { gridCount = parseInt(document.getElementById('vGridCount').value) || 20; localStorage.setItem('gridCount', gridCount); const txt = document.getElementById('vAllData').value; const h = getSectionLines(txt, 'Heim'), g = getSectionLines(txt, 'Gast'); if(h.length) tH = ["--- Waehlen ---", ...h]; if(g.length) tG = ["--- Waehlen ---", ...g]; const b = parseLinesFromSection(getSectionLines(txt, 'Biere'), 'biere'); if(b.length) menu.biere = [{n: "Weizen", sub: "weizen"}, {n: "Alkoholfreie Biere", sub: "biere_alk"}, ...b]; const w = parseLinesFromSection(getSectionLines(txt, 'Weizen'), 'biere'); if(w.length) menu.weizen = w; const ba = parseLinesFromSection(getSectionLines(txt, 'BiereAlk'), 'biere'); if(ba.length) menu.biere_alk = ba; const wn = parseLinesFromSection(getSectionLines(txt, 'Weine'), 'weine'); if(wn.length) menu.weine = wn; const s = parseLinesFromSection(getSectionLines(txt, 'Softdrinks'), 'softdrinks'); if(s.length) menu.softdrinks = s; const j = parseLinesFromSection(getSectionLines(txt, 'Jacky'), 'spirituosen'); if(j.length) menu.sub_jacky = j; const hc = parseLinesFromSection(getSectionLines(txt, 'Huetchen'), 'spirituosen'); if(hc.length) menu.sub_huetchen = hc; const sc = parseLinesFromSection(getSectionLines(txt, 'Schnaepse'), 'spirituosen'); if(sc.length) menu.sub_schnaepse = sc; const e = parseLinesFromSection(getSectionLines(txt, 'Essen'), 'essen'); if(e.length) menu.essen = e; const so = parseLinesFromSection(getSectionLines(txt, 'Sonstiges'), 'sonstiges'); if(so.length) menu.sonstiges = so; localStorage.setItem('fullMenu', JSON.stringify(menu)); save(); closeAll(); alert("Einstellungen automatisch aktualisiert!"); }
  function makeLines(arr) { if(!arr) return ''; return arr.filter(i => !i.sub).map(i => i.n + ';' + i.p.toFixed(2)).join('\n'); }
+
  function resetAll() { if (confirm("System komplett leeren?")) { for (let k in dbH) delete dbH[k]; for (let k in dbG) delete dbG[k]; save(); draw(); alert("System zurückgesetzt!"); } }
  function closeAll() { document.querySelectorAll('.overlay').forEach(o => o.style.display = 'none'); document.getElementById('subLastSelection').style.display = 'none'; draw(); }
  function backToMenu() { document.getElementById('popSub').style.display = 'none'; document.getElementById('subLastSelection').style.display = 'none'; openMenu(); }
  function save() { localStorage.setItem('dbH', JSON.stringify(dbH)); localStorage.setItem('dbG', JSON.stringify(dbG)); localStorage.setItem('tH', JSON.stringify(tH)); localStorage.setItem('tG', JSON.stringify(tG)); }
-
  function toggleViewMode() { const body = document.body; const btn = document.getElementById('viewToggleBtn'); if (body.classList.contains('force-mobile')) { body.classList.remove('force-mobile'); btn.innerText = 'PC'; btn.style.background = '#ffffff'; } else { body.classList.add('force-mobile'); btn.innerText = 'Mobil'; btn.style.background = '#60a5fa'; } draw(); }
  function openInvoice() { const p = (tab === 'heim' ? dbH : dbG)[idx]; const c = document.getElementById('iContent'); c.innerHTML = ''; const counts = {}; const now = new Date(); document.getElementById('iDateTime').innerText = 'Datum/Uhrzeit: ' + now.toLocaleDateString('de-DE') + ' - ' + now.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'}); if(p.items) p.items.forEach(i => counts[i.n] = (counts[i.n] || 0) + 1); Object.entries(counts).forEach(([n, count]) => { const pr = p.items.find(i => i.n === n).p; const div = document.createElement('div'); div.className = 'l-item'; div.innerHTML = '<div>' + count + 'x ' + n + '</div><strong>' + (count * pr).toFixed(2) + ' €</strong>'; c.appendChild(div); }); document.getElementById('iTotal').innerText = 'Summe: ' + p.total.toFixed(2) + ' €'; document.getElementById('iEv').style.display = isEv ? 'block' : 'none'; if(isEv) document.getElementById('iEv').innerHTML = '<p>Eingezahlt: <strong>' + p.dep.toFixed(2) + ' €</strong></p><p>Rest: <strong>' + p.credit.toFixed(2) + ' €</strong></p>'; const calc = document.getElementById('cashCalc'); if(!isEv && p.total > 0 && !p.paid) { calc.style.display = 'block'; document.getElementById('cashGiven').value = ''; document.getElementById('cashChange').innerText = 'Rueckgeld: 0.00 €'; } else { calc.style.display = 'none'; } document.getElementById('payBtn').style.display = isEv ? 'none' : 'block'; document.getElementById('popMenu').style.display = 'none'; document.getElementById('popInvoice').style.display = 'flex'; }
  function calcChange() { const tot = (tab === 'heim' ? dbH : dbG)[idx].total; const givIn = document.getElementById('cashGiven').value.replace(',', '.'); const giv = parseFloat(givIn) || 0; const chg = giv - tot; document.getElementById('cashChange').innerText = 'Rueckgeld: ' + (chg > 0 ? chg.toFixed(2) : '0.00') + ' €'; }
