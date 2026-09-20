@@ -218,16 +218,18 @@
  let isEv = JSON.parse(localStorage.getItem('isEv')) || false, tab = 'heim', idx = null, lastLoadAmt = 0;
  let gridCount = parseInt(localStorage.getItem('gridCount')) || 20;
 
- // HIER REINKOPIERT:
- window.addEventListener('input', function(e) {
-     if (e.target && typeof e.target.value === 'string') {
-         let val = e.target.value;
-         if (val.includes('[C1') || val.includes(']C1')) {
-             e.target.value = val.replace('[C1', '').replace(']C1', '');
-             e.target.dispatchEvent(new Event('input', { bubbles: true }));
-         }
-     }
- }, true);
+// Automatische Bereinigung des Scanner-Inputs vom Präfix ]C1
+window.addEventListener('input', function(e) {
+    if (e.target && typeof e.target.value === 'string') {
+        let val = e.target.value;
+        if (val.includes(']C1')) {
+            e.target.value = val.replace(']C1', '');
+            // Signalisiert der App, dass der Text jetzt sauber ist
+            e.target.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+}, true);
+
 
 
  let tH = JSON.parse(localStorage.getItem('tH')) || ["--- Waehlen ---", "Thomas", "Michael", "Andreas"], tG = JSON.parse(localStorage.getItem('tG')) || ["--- Waehlen ---", "Gast 1", "Gast 2"];
