@@ -311,14 +311,18 @@
  function openScannerPopup() {
     document.getElementById('popScanner').style.display = 'flex';
     if (!html5QrcodeScanner) { html5QrcodeScanner = new Html5Qrcode("reader"); }
-    const config = { fps: 10, qrbox: { width: 250, height: 150 } };
     
+    // Pixel 8a Spezial-Einstellung: Keine feste Box erzwingen
     html5QrcodeScanner.start(
-      { facingMode: "environment" }, config, 
+      { facingMode: "environment" }, 
+      { fps: 15 }, 
       (decodedText) => { closeScannerPopup(); processScannedCode(decodedText.trim()); }, 
       (errorMessage) => {}
-    ).catch(err => { console.log("Kamera blockiert."); });
+    ).catch(err => { 
+      alert("Kamera-Fehler auf Pixel: Bitte Seite neu laden."); 
+    });
  }
+
  function closeScannerPopup() { document.getElementById('popScanner').style.display = 'none'; if (html5QrcodeScanner && html5QrcodeScanner.isScanning) { html5QrcodeScanner.stop().catch(() => {}); } }
 
  function showList(m) { const c = document.getElementById('lContent'); c.innerHTML = ''; let s = 0; if (m === 'essen') document.getElementById('lTitle').innerText = 'Essen-Liste'; else if (m === 'spirituosen') document.getElementById('lTitle').innerText = 'Spirituosen-Liste'; else if (m === 'rest') document.getElementById('lTitle').innerText = 'Gesamt (Ohne Essen)'; else if (m === 'alles') document.getElementById('lTitle').innerText = 'Absolute Gesamtabrechnung'; const counts = {}; const processData = (d) => { Object.values(d).forEach(p => { if(p.items) { p.items.forEach(i => { const isJacky = i.n.toLowerCase().includes('jacky'); if (m === 'alles') { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'essen' && i.c === 'essen') { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'spirituosen' && i.c === 'spirituosen' && isJacky) { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'rest' && i.c !== 'essen' && !(i.c === 'spirituosen' && isJacky)) { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } }); } }); }; processData(dbH); processData(dbG); Object.entries(counts).forEach(([name, count]) => { let unitPrice = 0; const findPrice = (d) => { Object.values(d).forEach(p => { if(p.items) { const found = p.items.find(item => item.n === name); if(found) unitPrice = found.p; } }); }; findPrice(dbH); if(unitPrice === 0) findPrice(dbG); const div = document.createElement('div'); div.className = 'l-item'; div.innerHTML = '<div><strong>' + count + 'x</strong> ' + name + '</div><strong>' + (count * unitPrice).toFixed(2) + ' €</strong>'; c.appendChild(div); }); const tDiv = document.createElement('div'); tDiv.className = 'l-item'; tDiv.style.borderTop = '3px double #333'; tDiv.innerHTML = '<div><strong>GESAMT:</strong></div><strong>' + s.toFixed(2) + ' €</strong>'; c.appendChild(tDiv); document.getElementById('popList').style.display = 'flex'; }
