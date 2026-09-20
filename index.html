@@ -339,12 +339,17 @@ window.addEventListener('input', function(e) {
  function startPixelScan(detector, video) {
     if (!cameraStream) return;
     detector.detect(video).then(barcodes => {
-        if (barcodes.length > 0 && barcodes[0].rawValue) {
-            const code = barcodes[0].rawValue.trim();
-            closeScannerPopup(); processScannedCode(code);
+        if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+            // Liest den Code aus und loescht das stoerende ]C1 vom Pixel-Scanner
+            let code = barcodes[0].rawValue.trim();
+            if (code.includes(']C1')) { code = code.replace(']C1', ''); }
+            
+            closeScannerPopup(); 
+            processScannedCode(code);
         }
     }).catch(err => { console.log("Suche...", err); });
  }
+
 
 
  function closeScannerPopup() {
