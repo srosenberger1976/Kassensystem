@@ -108,6 +108,22 @@
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
+<!-- Verbindung zum App-Manifest -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+
+<!-- Registrierung des Hintergrund-Service-Workers -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('App-Modus bereit!', reg))
+        .catch(err => console.error('Fehler:', err));
+    });
+  }
+</script>
+
+    
 </head>
 <body>
     <!-- anfang teil 3 -->
