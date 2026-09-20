@@ -108,22 +108,6 @@
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
-<!-- Verbindung zum App-Manifest -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#000000">
-
-<!-- Registrierung des Hintergrund-Service-Workers -->
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('App-Modus bereit!', reg))
-        .catch(err => console.error('Fehler:', err));
-    });
-  }
-</script>
-
-    
 </head>
 <body>
     <!-- anfang teil 3 -->
@@ -255,7 +239,8 @@
         </div>
     </div>
 
-    <div class="overlay" id="popInvoice" style="display: flex;">
+   <div class="overlay" id="popInvoice" style="display: none;">
+
         <div class="popup">
             <h3>Rechnung</h3>
             <div class="datetime-label" id="iDateTime">Datum/Uhrzeit: 11.7.2026 - 18:32</div>
