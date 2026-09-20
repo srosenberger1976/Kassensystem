@@ -329,19 +329,30 @@ window.addEventListener('input', function(e) {
  
  let cameraStream = null; let scanInterval = null;
  function openScannerPopup() {
-    const video = document.getElementById('pixelVideo'); document.getElementById('popScanner').style.display = 'flex';
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } }).then(stream => {
-        cameraStream = stream; video.srcObject = stream;
-        // Erkennt ob es ein Android (Google) oder Apple (iPhone) Geraet ist
-        if ('BarcodeDetector' in window) { 
-            const detector = new BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8'] }); 
-            scanInterval = setInterval(() => { startPixelScan(detector, video); }, 300); 
-        } else {
-            // Apple-Weiche: Nutzt die Standard-Kamera-Schnittstelle von iOS
-            scanInterval = setInterval(() => { startAppleScan(video); }, 300);
-        }
-    }).catch(err => { alert("Kamera blockiert! Bitte Berechtigung in den Einstellungen erlauben."); });
+    document.getElementById('popScanner').style.display = 'flex';
+    const video = document.getElementById('pixelVideo');
+    if (!html5QrcodeScanner) { html5QrcodeScanner = new Html5Qrcode("reader"); }
+
+    if ('BarcodeDetector' in window) {
+        // Android / Pixel Weg: Nutzt dein vorhandenes Video-Element
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(stream => {
+            cameraStream = stream; video.srcObject = stream;
+            const detector = new BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8'] });
+            scanInterval = setInterval(() => {
+                if (!cameraStream) return;
+                detector.detect(video).then(b => { if (b && b.length > 0 && b[0].rawValue) { let c = b[0].rawValue.trim().replace(']C1', ''); closeScannerPopup(); processScannedCode(c); } }).catch(() => {});
+            }, 300);
+        }).catch(() => { alert("Kamera blockiert!"); });
+    } else {
+        // Apple / iPhone Weg: Blendet das Video aus und nutzt die Apple-Schnittstelle im reader-Feld
+        video.style.display = 'none';
+        html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 150 } }, 
+            (txt) => { let c = txt.trim().replace(']C1', ''); closeScannerPopup(); processScannedCode(c); }, 
+            () => {}
+        ).catch(() => { alert("iPhone Kamera blockiert!"); });
+    }
  }
+
 
 
  function startPixelScan(detector, video) {
@@ -367,9 +378,12 @@ window.addEventListener('input', function(e) {
 
 
  function closeScannerPopup() {
-    document.getElementById('popScanner').style.display = 'none';
+    document.getElementById('popScanner').style.none;
+    document.getElementById('pixelVideo').style.display = 'block';
     if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
-    if (cameraStream) { cameraStream.getTracks().forEach(track => track.stop()); cameraStream = null; }
+    if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+    if (html5QrcodeScanner && html5QrcodeScanner.isScanning) { html5QrcodeScanner.stop().catch(() => {}); }
+    document.getElementById('popScanner').style.display = 'none';
  }
 
 
