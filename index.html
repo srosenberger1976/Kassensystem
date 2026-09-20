@@ -310,30 +310,35 @@
  function openNameForScannedCard(cardLabel, code) { scannedCardEan = code; document.getElementById('nameAssignTitle').innerText = "Karte (" + cardLabel + ") einem Spieler zuweisen:"; openName(); }
  function parseLinesFromSection(lines, cat) { return lines.map(l => { if (!l || !l.includes(';')) return null; const parts = l.split(';'); return {n: parts.trim(), p: parseFloat(parts.replace(',','.'))||0, c: cat}; }).filter(x => x); }
  
- let cameraStream = null;
-
+ let cameraStream = null; let scanInterval = null;
  function openScannerPopup() {
-    const video = document.getElementById('pixelVideo');
-    document.getElementById('popScanner').style.display = 'flex';
-    
-    // Die offizielle Google-Methode fuer Pixel-Handys
-    navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
-    }).then(stream => {
-        cameraStream = stream;
-        video.srcObject = stream;
-    }).catch(err => {
-        alert("Kamera-Berechtigung blockiert! Bitte in den Android-Einstellungen fuer Chrome freischalten.");
-    });
+    const video = document.getElementById('pixelVideo'); document.getElementById('popScanner').style.display = 'flex';
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } }).then(stream => {
+        cameraStream = stream; video.srcObject = stream;
+        if ('BarcodeDetector' in window) { const detector = new BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'qr_code'] }); scanInterval = setInterval(() => { startPixelScan(detector, video); }, 300); }
+    }).catch(err => { alert("Kamera blockiert! Bitte Berechtigung prüfen."); });
  }
+
+ function startPixelScan(detector, video) {
+    if (!cameraStream) return;
+    detector.detect(video).then(barcodes => {
+        if (barcodes.length > 0 && barcodes[0].rawValue) {
+            const code = barcodes[0].rawValue.trim();
+            closeScannerPopup(); processScannedCode(code);
+        }
+    }).catch(err => { console.log("Suche...", err); });
+ }
+
 
  function closeScannerPopup() {
     document.getElementById('popScanner').style.display = 'none';
-    if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-        cameraStream = null;
-    }
+    if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+    if (cameraStream) { cameraStream.getTracks().forEach(track => track.stop()); cameraStream = null; }
  }
+
+
+
+
 
  function showList(m) { const c = document.getElementById('lContent'); c.innerHTML = ''; let s = 0; if (m === 'essen') document.getElementById('lTitle').innerText = 'Essen-Liste'; else if (m === 'spirituosen') document.getElementById('lTitle').innerText = 'Spirituosen-Liste'; else if (m === 'rest') document.getElementById('lTitle').innerText = 'Gesamt (Ohne Essen)'; else if (m === 'alles') document.getElementById('lTitle').innerText = 'Absolute Gesamtabrechnung'; const counts = {}; const processData = (d) => { Object.values(d).forEach(p => { if(p.items) { p.items.forEach(i => { const isJacky = i.n.toLowerCase().includes('jacky'); if (m === 'alles') { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'essen' && i.c === 'essen') { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'spirituosen' && i.c === 'spirituosen' && isJacky) { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } else if (m === 'rest' && i.c !== 'essen' && !(i.c === 'spirituosen' && isJacky)) { counts[i.n] = (counts[i.n] || 0) + 1; s += i.p; } }); } }); }; processData(dbH); processData(dbG); Object.entries(counts).forEach(([name, count]) => { let unitPrice = 0; const findPrice = (d) => { Object.values(d).forEach(p => { if(p.items) { const found = p.items.find(item => item.n === name); if(found) unitPrice = found.p; } }); }; findPrice(dbH); if(unitPrice === 0) findPrice(dbG); const div = document.createElement('div'); div.className = 'l-item'; div.innerHTML = '<div><strong>' + count + 'x</strong> ' + name + '</div><strong>' + (count * unitPrice).toFixed(2) + ' €</strong>'; c.appendChild(div); }); const tDiv = document.createElement('div'); tDiv.className = 'l-item'; tDiv.style.borderTop = '3px double #333'; tDiv.innerHTML = '<div><strong>GESAMT:</strong></div><strong>' + s.toFixed(2) + ' €</strong>'; c.appendChild(tDiv); document.getElementById('popList').style.display = 'flex'; }
  function saveName() { const inputField = document.getElementById('inp').value.trim(); const dropdownField = document.getElementById('drop').value; let finalName = inputField || dropdownField; if (!finalName) return; const currentDb = tab === 'heim' ? dbH : dbG; currentDb[idx] = { name: finalName, ean: scannedCardEan, items: [], total: 0, credit: 0, dep: 0, paid: false, rec: [] }; save(); scannedCardEan = ""; closeAll(); openMenu(); }
